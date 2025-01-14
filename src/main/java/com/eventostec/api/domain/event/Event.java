@@ -1,6 +1,6 @@
-package com.eventostec.api.domain;
+package com.eventostec.api.domain.event;
 
-import java.sql.Date;
+import java.util.Date;
 import java.util.UUID;
 
 import jakarta.annotation.Generated;
