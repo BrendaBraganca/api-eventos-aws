@@ -20,7 +20,7 @@ public class AddressService {
         Address address = new Address();
         address.setCity(eventRequestDTO.city());
         address.setUf(eventRequestDTO.state());
-        address.setEnvent(event);
+        address.setEvent(event);
         addressRepository.save(address);
     }
 

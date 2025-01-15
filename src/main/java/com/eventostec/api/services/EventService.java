@@ -6,14 +6,20 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.amazonaws.services.s3.AmazonS3;
+import com.eventostec.api.domain.address.Address;
+import com.eventostec.api.domain.cupon.Cupon;
 import com.eventostec.api.domain.event.Event;
+import com.eventostec.api.domain.event.EventDetailsDTO;
+import com.eventostec.api.domain.event.EventDetailsDTO.CuponDTO;
 import com.eventostec.api.domain.event.EventRequestDTO;
 import com.eventostec.api.domain.event.EventResponseDTO;
 import com.eventostec.api.repositories.EventRepository;
@@ -37,6 +43,9 @@ public class EventService {
 
     @Autowired
     private AddressService addressService;
+
+    @Autowired
+    private CuponService cuponService;
 
     private File convertMultipartToFile (MultipartFile multipartFile) throws IOException{
         File convFile =  new File(Objects.requireNonNull(multipartFile.getOriginalFilename()));
@@ -85,18 +94,50 @@ public class EventService {
 
     }
 
-    public List<EventResponseDTO> getUpComingEvents(int page, int size){
+    public List<EventResponseDTO> getUpComingEvents(int page, int size, String title, String city, String uf, Date starDate, Date endDate){
+        title = (title != null) ? title : "";
+        city = (city != null) ? city : "";
+        uf = (uf != null) ? uf : "";
+        starDate = (starDate != null) ? starDate : new Date(0);
+        endDate = (endDate != null) ? endDate : new Date(0);
         Pageable pageable = PageRequest.of(page, size);
         Page<Event> eventsPage =  this.repository.findUpComingEvents(new Date(), pageable);
-        return eventsPage.map(event -> new EventResponseDTO(event.getId(), event.getTitle(), event.getDescription(), event.getDate(),  "", "", event.getRemote(), event.getEventUrl(), event.getImgUrl())).stream().toList();
+        return eventsPage.map(event -> new EventResponseDTO(event.getId(), event.getTitle(), event.getDescription(), event.getDate(),  event.getAddress() != null ? event.getAddress().getCity(): "", event.getAddress() != null ? event.getAddress().getUf() : "", event.getRemote(), event.getEventUrl(), event.getImgUrl())).stream().toList();
         
     }
 
-    public List<EventResponseDTO> getFilteredEvents(int page, int size, String city, String uf, Date starDate, Date enDate){
+    public List<EventResponseDTO> getFilteredEvents(int page, int size,String title, String city, String uf, Date starDate, Date enDate){
         Pageable pageable = PageRequest.of(page, size);
-        Page<Event> eventsPage =  this.repository.findFilteredEvents( city, uf, enDate, enDate, pageable);
+        Page<Event> eventsPage =  this.repository.findFilteredEvents(title, city, uf, enDate, enDate, pageable);
 
-        return eventsPage.map(event -> new EventResponseDTO(event.getId(), event.getTitle(), event.getDescription(), event.getDate(),  "", "", event.getRemote(), event.getEventUrl(), event.getImgUrl())).stream().toList();
+        return eventsPage.map(event -> new EventResponseDTO(event.getId(), event.getTitle(), event.getDescription(), event.getDate(),  event.getAddress() != null ? event.getAddress().getCity(): "", event.getAddress() != null ? event.getAddress().getUf() : "", event.getRemote(), event.getEventUrl(), event.getImgUrl())).stream().toList();
+    }
+
+    public EventDetailsDTO getEventDetails(UUID eventId) {
+        Event event = repository.findById(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event not found"));
+
+        Optional<Address> address = addressService.findByEventId(eventId);
+
+        List<Cupon> coupons = cuponService.consultCoupons(eventId, new Date());
+
+        List<EventDetailsDTO.CuponDTO> couponDTOs = coupons.stream()
+                .map(coupon -> new CuponDTO(
+                        coupon.getCode(),
+                        coupon.getDiscount(),
+                        coupon.getValid()))
+                .collect(Collectors.toList());
+
+        return new EventDetailsDTO(
+                event.getId(),
+                event.getTitle(),
+                event.getDescription(),
+                event.getDate(),
+                address.isPresent() ? address.get().getCity() : "",
+                address.isPresent() ? address.get().getUf() : "",
+                event.getImgUrl(),
+                event.getEventUrl(),
+                couponDTOs);
     }
 
 }

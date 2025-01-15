@@ -29,6 +29,6 @@ public class Address {
     
     @ManyToOne
     @JoinColumn(name = "event_id")
-    private Event envent;
+    private Event event;
 
 }
