@@ -35,6 +35,9 @@ public class EventService {
     @Autowired
     private EventRepository repository;
 
+    @Autowired
+    private AddressService addressService;
+
     private File convertMultipartToFile (MultipartFile multipartFile) throws IOException{
         File convFile =  new File(Objects.requireNonNull(multipartFile.getOriginalFilename()));
         FileOutputStream fos = new FileOutputStream(convFile);
@@ -73,15 +76,27 @@ public class EventService {
         newEvent.setImgUrl(imgUrl);
         newEvent.setRemote(data.remote());
         repository.save(newEvent);
+
+        if(!data.remote()){
+            this.addressService.createAddress(data, newEvent);
+        }
+
         return newEvent;
 
     }
 
     public List<EventResponseDTO> getUpComingEvents(int page, int size){
         Pageable pageable = PageRequest.of(page, size);
-        Page<Event> eventsPage =  this.repository.findAll(pageable);
+        Page<Event> eventsPage =  this.repository.findUpComingEvents(new Date(), pageable);
         return eventsPage.map(event -> new EventResponseDTO(event.getId(), event.getTitle(), event.getDescription(), event.getDate(),  "", "", event.getRemote(), event.getEventUrl(), event.getImgUrl())).stream().toList();
         
+    }
+
+    public List<EventResponseDTO> getFilteredEvents(int page, int size, String city, String uf, Date starDate, Date enDate){
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Event> eventsPage =  this.repository.findFilteredEvents( city, uf, enDate, enDate, pageable);
+
+        return eventsPage.map(event -> new EventResponseDTO(event.getId(), event.getTitle(), event.getDescription(), event.getDate(),  "", "", event.getRemote(), event.getEventUrl(), event.getImgUrl())).stream().toList();
     }
 
 }
