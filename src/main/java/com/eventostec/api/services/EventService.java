@@ -47,6 +47,7 @@ public class EventService {
             file.delete();
             return s3Client.getUrl(bucketName, fileName).toString();
         } catch (Exception e){
+            System.out.println("Bucket usado: " + bucketName);
             System.out.println("Erro ao subir arquivo");
         }
         return "";
